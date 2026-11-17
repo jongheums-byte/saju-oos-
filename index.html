@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>사주 OOS — 무료 사주팔자 · 오늘의 운세 · 월별 운세</title>
+  <meta name="description" content="생년월일시로 보는 무료 사주팔자 명식표, 오행 분포, 오늘의 오행 부적 카드, 12개월 월별 운세. 서버 저장 없이 브라우저에서 즉시 계산됩니다.">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    :root {
+      --bg: #f6f3ec;
+      --surface: #ffffff;
+      --surface-soft: #faf8f3;
+      --ink: #1f2430;
+      --muted: #667085;
+      --border: #e4dfd3;
+      --primary: #1e2a4a;
+      --primary-hover: #141d35;
+      --accent: #b8862d;
+      --accent-soft: #fbf5e8;
+      --wood: #16805b;
+      --wood-bg: #e7f6ef;
+      --fire: #c84032;
+      --fire-bg: #fdeceb;
+      --earth: #b7791f;
+      --earth-bg: #fef6e4;
+      --metal: #475569;
+      --metal-bg: #f1f5f9;
+      --water: #1d4ed8;
+      --water-bg: #ebf2fe;
+      --radius: 14px;
+      --shadow: 0 6px 24px rgba(30, 42, 74, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Pretendard', 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+
+    .topbar {
+      background: linear-gradient(135deg, #16203a 0%, #24335c 100%);
+      color: #fff;
+      padding: 18px 24px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    }
+    .topbar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 215, 130, 0.35);
+      display: grid; place-items: center; font-size: 20px;
+    }
+    .brand h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+    .brand p { margin: 0; font-size: 12px; color: rgba(255, 255, 255, 0.75); }
+    .privacy-pill {
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 6px 12px;
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .container { max-width: 1200px; margin: 22px auto 56px; padding: 0 20px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 350px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .layout.full-result {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .sticky-col { position: sticky; top: 18px; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sticky-col { position: static; }
+    }
+
+    .summary-bar {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 18px; margin-bottom: 18px; box-shadow: var(--shadow);
+    }
+    .summary-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+    .summary-info .sep { color: #cbd5e1; }
+    .btn-edit-compact {
+      padding: 6px 13px; border: 1px solid #cbd5e1; border-radius: 8px;
+      background: var(--surface-soft); color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-edit-compact:hover { border-color: var(--primary); color: var(--primary); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      margin: 0 0 14px;
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px;
+    }
+    .field input[type="text"],
+    .field input[type="date"],
+    .field input[type="time"],
+    .field input[type="number"] {
+      width: 100%; padding: 9px 11px; border: 1px solid #d5cfc2;
+      border-radius: 9px; font-size: 14px; background: #fff; color: var(--ink);
+    }
+    .field input:disabled { background: #f3f4f6; color: #9ca3af; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .seg-group { display: flex; gap: 6px; }
+    .seg-btn {
+      flex: 1; padding: 8px 10px; border: 1px solid #d5cfc2;
+      background: #fff; border-radius: 9px; font-size: 13px; font-weight: 600;
+      color: var(--muted); cursor: pointer;
+    }
+    .seg-btn.active {
+      background: var(--accent-soft); border-color: var(--accent); color: #7c5412;
+    }
+
+    .topic-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .topic-chip {
+      padding: 8px 6px; border: 1px solid #d5cfc2; border-radius: 9px;
+      background: #fff; font-size: 13px; font-weight: 600; color: var(--muted);
+      cursor: pointer; text-align: center;
+    }
+    .topic-chip.active {
+      background: var(--primary); border-color: var(--primary); color: #fff;
+    }
+
+    .checkbox-row {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--muted); margin-top: 6px; cursor: pointer;
+    }
+
+    .btn-primary {
+      width: 100%; padding: 12px 16px; border: none; border-radius: 10px;
+      background: var(--primary); color: #fff; font-size: 15px; font-weight: 700;
+      cursor: pointer; margin-top: 6px; transition: background 0.15s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-outline {
+      width: 100%; padding: 11px 16px; border: 1.5px solid var(--primary); border-radius: 10px;
+      background: #fff; color: var(--primary); font-size: 14.5px; font-weight: 700; cursor: pointer;
+      margin-top: 6px; transition: all 0.15s;
+    }
+    .btn-outline:hover:not(:disabled) { background: #f1f5f9; }
+
+    .notice {
+      padding: 10px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.5; margin-bottom: 12px;
+    }
+    .notice-warn { background: #fff8e6; border: 1px solid #f2d58a; color: #7a520b; }
+    .notice-err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .privacy-note { font-size: 11.5px; color: var(--muted); text-align: center; margin-top: 10px; }
+
+    .stack { display: flex; flex-direction: column; gap: 16px; }
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--muted); }
+    .empty-state .icon { font-size: 42px; margin-bottom: 10px; }
+
+    /* Pillars */
+    .pillars-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    @media (max-width: 600px) { .pillars-grid { grid-template-columns: repeat(2, 1fr); } }
+    .pillar-card {
+      background: var(--surface-soft); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 10px; text-align: center;
+    }
+    .pillar-card.is-day { border-color: var(--accent); background: var(--accent-soft); }
+    .pillar-label { font-size: 11.5px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+    .char-box {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 8px 6px; border-radius: 9px; margin-bottom: 6px;
+    }
+    .char-hanja { font-size: 24px; font-weight: 700; line-height: 1.15; }
+    .char-ko { font-size: 13.5px; font-weight: 700; margin-top: 3px; }
+    .pillar-meta { font-size: 12px; color: var(--muted); }
+
+    .el-wood { background: var(--wood-bg); color: var(--wood); }
+    .el-fire { background: var(--fire-bg); color: var(--fire); }
+    .el-earth { background: var(--earth-bg); color: var(--earth); }
+    .el-metal { background: var(--metal-bg); color: var(--metal); }
+    .el-water { background: var(--water-bg); color: var(--water); }
+
+    .text-wood { color: var(--wood); }
+    .text-fire { color: var(--fire); }
+    .text-earth { color: var(--earth); }
+    .text-metal { color: var(--metal); }
+    .text-water { color: var(--water); }
+
+    .kv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+    @media (max-width: 720px) { .kv-grid { grid-template-columns: repeat(2, 1fr); } }
+    .kv-card {
+      background: var(--surface-soft); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px;
+    }
+    .kv-label { font-size: 11.5px; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+    .kv-val { font-size: 15px; font-weight: 800; color: var(--ink); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      background: var(--surface-soft); border: 1px solid var(--border);
+    }
+
+    .elements-list { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+    .el-row { display: grid; grid-template-columns: 98px 1fr; align-items: center; gap: 12px; font-size: 13.5px; }
+    .el-label-wrap { display: flex; align-items: center; justify-content: space-between; }
+    .el-count { font-weight: 800; }
+    .el-bar-track { height: 11px; background: #eeeae0; border-radius: 999px; overflow: hidden; }
+    .el-bar-fill { height: 100%; border-radius: 999px; transition: width 0.35s ease; }
+    .fill-wood { background: var(--wood); }
+    .fill-fire { background: var(--fire); }
+    .fill-earth { background: var(--earth); }
+    .fill-metal { background: var(--metal); }
+    .fill-water { background: var(--water); }
+
+    .daeun-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+    .daeun-item {
+      background: var(--surface-soft); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 6px; text-align: center;
+    }
+    .daeun-age { font-size: 11px; color: var(--muted); }
+    .daeun-ganji { font-size: 15px; font-weight: 700; margin: 2px 0; }
+    .daeun-hanja { font-size: 11px; color: var(--muted); }
+
+    .monthly-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    @media (max-width: 720px) { .monthly-grid { grid-template-columns: repeat(2, 1fr); } }
+    .month-item {
+      background: var(--surface-soft); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px; font-size: 12px;
+    }
+    .month-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .month-num { font-weight: 700; font-size: 13px; color: var(--primary); }
+    .month-ganji { font-weight: 700; font-size: 14px; }
+    .month-tone {
+      display: inline-block; padding: 2px 7px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; margin: 4px 0;
+    }
+    .tone-good { background: var(--wood-bg); color: var(--wood); }
+    .tone-caution { background: var(--fire-bg); color: var(--fire); }
+    .tone-neutral { background: var(--metal-bg); color: var(--metal); }
+    .month-hint { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+
+    .reading-body { font-size: 14.5px; line-height: 1.75; color: #262b36; max-width: 70ch; }
+    .reading-body h4 {
+      margin: 18px 0 8px; padding-bottom: 5px; font-size: 15.5px; color: var(--primary);
+      border-bottom: 1px solid var(--border);
+    }
+    .reading-body p { margin: 10px 0; }
+    .guidance-box {
+      background: var(--surface-soft); border-left: 3px solid var(--accent);
+      padding: 12px 14px; border-radius: 0 10px 10px 0; margin-top: 14px; font-size: 13.5px;
+    }
+    .guidance-box ul { margin: 6px 0 0; padding-left: 18px; }
+
+    /* 오늘의 오행 부적 카드 */
+    .talisman-wrap { display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: stretch; }
+    @media (max-width: 640px) { .talisman-wrap { grid-template-columns: 1fr; } }
+    .talisman-art {
+      border-radius: 14px; padding: 14px 12px; text-align: center;
+      border: 2px solid rgba(184, 134, 45, 0.45);
+      box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.55), 0 6px 18px rgba(30, 42, 74, 0.08);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .talisman-art.t-wood { background: linear-gradient(160deg, #e7f6ef 0%, #c8ebd9 100%); color: #0f5c41; }
+    .talisman-art.t-fire { background: linear-gradient(160deg, #fdeceb 0%, #fbd0cc 100%); color: #9c2b20; }
+    .talisman-art.t-earth { background: linear-gradient(160deg, #fef6e4 0%, #f8e3b4 100%); color: #8c5a10; }
+    .talisman-art.t-metal { background: linear-gradient(160deg, #f1f5f9 0%, #dbe3ec 100%); color: #334155; }
+    .talisman-art.t-water { background: linear-gradient(160deg, #ebf2fe 0%, #cde0fc 100%); color: #1e40af; }
+    .talisman-date { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.85; }
+    .talisman-tag {
+      display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78); font-size: 11.5px; font-weight: 700;
+    }
+    .talisman-3lines { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+    .t-line {
+      flex: 1; display: flex; align-items: center;
+      background: var(--surface-soft); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 14px; font-size: 13.5px; line-height: 1.5;
+    }
+    .t-line strong { color: var(--primary); margin-right: 8px; white-space: nowrap; }
+
+    /* 액션 바 */
+    .action-bar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 12px 16px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .action-btns { display: flex; flex-wrap: wrap; gap: 7px; }
+    .btn-action {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+      border: 1px solid #d5cfc2; background: var(--surface-soft); color: var(--ink);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-action:hover { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
+    .toast-msg { font-size: 12px; font-weight: 600; color: var(--wood); }
+
+    @media print {
+      body { background: #fff; }
+      .topbar, .sticky-col, .action-bar, .summary-bar { display: none !important; }
+      .container { max-width: 100%; margin: 0; padding: 0; }
+      .layout { display: block !important; }
+      .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; margin-bottom: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">☯</div>
+        <div>
+          <h1>사주 OOS (Out of Saju)</h1>
+          <p>사주팔자 · 오행 분포 · 오늘의 오행 부적 · 12개월 월별 운세</p>
+        </div>
+      </div>
+      <div class="privacy-pill">🔒 서버 저장 없이 브라우저에서 즉시 계산</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div v-if="result && !editingInput" class="summary-bar">
+      <div class="summary-info">
+        <strong>{{ result.input.name || '본인' }}</strong>
+        <span class="sep">|</span>
+        <span>{{ result.input.birthDate }} {{ result.input.birthTime || '시간 미상' }}</span>
+        <span class="sep">|</span>
+        <span>양력 · {{ result.input.gender === 'male' ? '남성' : '여성' }}</span>
+        <span class="sep">|</span>
+        <span class="badge">{{ currentTopicLabel }}</span>
+      </div>
+      <button type="button" class="btn-edit-compact" @click="editingInput = true">✏️ 정보 · 주제 수정</button>
+    </div>
+
+    <div class="layout" :class="{ 'full-result': result && !editingInput }">
+      <!-- 입력 폼 -->
+      <section v-if="!result || editingInput" class="card sticky-col">
+        <h2 class="card-title">
+          <span>출생 정보 입력</span>
+          <button v-if="result" type="button" class="btn-edit-compact" @click="editingInput = false">접기</button>
+        </h2>
+
+        <div class="field">
+          <label>이름 (선택)</label>
+          <input type="text" v-model="form.name" placeholder="예: 홍길동">
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label>성별 *</label>
+            <div class="seg-group">
+              <button type="button" class="seg-btn" :class="{ active: form.gender === 'male' }" @click="form.gender = 'male'">남성</button>
+              <button type="button" class="seg-btn" :class="{ active: form.gender === 'female' }" @click="form.gender = 'female'">여성</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>달력 구분 *</label>
+            <div class="seg-group">
+              <button type="button" class="seg-btn" :class="{ active: form.calendar === 'solar' }" @click="form.calendar = 'solar'">양력</button>
+              <button type="button" class="seg-btn" :class="{ active: form.calendar === 'lunar' }" @click="form.calendar = 'lunar'">음력</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="form.calendar === 'lunar'" class="notice notice-warn">
+          음력 생일은 임의 변환 시 오차가 발생할 수 있어, 만세력으로 <strong>양력 날짜</strong>를 확인한 뒤 양력으로 선택해 입력해 주세요.
+        </div>
+
+        <div class="field">
+          <label>생년월일 (양력) *</label>
+          <input type="date" v-model="form.birthDate">
+        </div>
+
+        <div class="field">
+          <label>태어난 시간 (권장)</label>
+          <input type="time" v-model="form.birthTime" :disabled="form.unknownTime">
+          <label class="checkbox-row">
+            <input type="checkbox" v-model="form.unknownTime">
+            태어난 시간을 모름 (연·월·일 중심으로 보수적 풀이)
+          </label>
+        </div>
+
+        <div class="field">
+          <label>보고 싶은 주제 *</label>
+          <div class="topic-grid">
+            <button
+              v-for="t in topics"
+              :key="t.key"
+              type="button"
+              class="topic-chip"
+              :class="{ active: form.topicKey === t.key }"
+              @click="form.topicKey = t.key"
+            >{{ t.label }}</button>
+          </div>
+        </div>
+
+        <div class="field" v-if="form.topicKey === 'yearly' || form.topicKey === 'monthly'">
+          <label>대상 연도</label>
+          <input type="number" v-model.number="form.targetYear" min="1950" max="2100">
+        </div>
+
+        <div v-if="errorMsg" class="notice notice-err">{{ errorMsg }}</div>
+
+        <button :class="result ? 'btn-outline' : 'btn-primary'" :disabled="form.calendar === 'lunar'" @click="runAnalysis">
+          {{ result ? '변경 조건으로 다시 보기' : '무료 사주 풀이 보기' }}
+        </button>
+
+        <p class="privacy-note">입력하신 생년월일시는 서버로 전송되거나 저장되지 않습니다.</p>
+      </section>
+
+      <!-- 결과 영역 -->
+      <section class="stack">
+        <div v-if="!result" class="card empty-state">
+          <div class="icon">☯</div>
+          <h3>출생 정보를 입력하고 무료 사주 풀이를 시작해 보세요</h3>
+          <p>사주팔자 명식표, 오행 분포, 오늘의 오행 부적 카드, 12개월 월별 운세를<br>브라우저에서 즉시 계산해 드립니다.</p>
+        </div>
+
+        <template v-else>
+          <div v-if="result.timeAccuracy === 'unknown'" class="notice notice-warn">
+            <strong>정확도 안내:</strong> 태어난 시간이 없어 시주는 확정하지 않고 연·월·일 중심으로 보수적으로 해석합니다.
+          </div>
+
+          <div class="action-bar">
+            <div class="action-btns">
+              <button type="button" class="btn-action" @click="printPdf">📄 PDF 저장 / 인쇄</button>
+              <button type="button" class="btn-action" @click="downloadTalismanPng">🖼️ 부적 카드 PNG 저장</button>
+              <button type="button" class="btn-action" @click="copySummary">📋 결과 요약 복사</button>
+            </div>
+            <span v-if="toast" class="toast-msg">{{ toast }}</span>
+          </div>
+          <div v-if="manualCopyText" class="card" style="padding:12px;">
+            <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">아래 내용을 선택해 <strong>Ctrl+C</strong>로 복사하세요.</div>
+            <textarea readonly rows="5" style="width:100%; font-size:12.5px; padding:8px; border:1px solid var(--border); border-radius:8px;" @focus="$event.target.select()">{{ manualCopyText }}</textarea>
+          </div>
+
+          <!-- 오늘의 오행 부적 카드 -->
+          <div class="card">
+            <h2 class="card-title" style="align-items:flex-start; flex-wrap:wrap;">
+              <div>
+                <div>🎴 오늘의 오행 부적 카드</div>
+                <div style="font-size:13.5px; font-weight:600; color:var(--accent); margin-top:2px;">
+                  “{{ result.dailyFortune.cardSubtitle }}”
+                </div>
+              </div>
+              <span class="badge">{{ result.dailyFortune.date }} · {{ result.dailyFortune.todayPillar.label }}일진 ({{ result.dailyFortune.tenGod }})</span>
+            </h2>
+            <div class="talisman-wrap">
+              <div class="talisman-art" :class="'t-' + result.dailyFortune.element">
+                <div class="talisman-date">{{ result.dailyFortune.date }}</div>
+                <svg viewBox="0 0 120 120" width="104" height="104" style="display:block; margin:4px auto;" aria-hidden="true">
+                  <rect x="8" y="8" width="104" height="104" rx="14" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" opacity="0.5"/>
+                  <circle cx="60" cy="60" r="38" fill="rgba(255,255,255,0.62)" stroke="currentColor" stroke-width="2.5"/>
+                  <circle cx="60" cy="60" r="32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+                  <text x="60" y="67" text-anchor="middle" font-size="25" font-weight="800" fill="currentColor" font-family="serif">{{ result.dailyFortune.talismanHanja }}</text>
+                </svg>
+                <div style="font-weight:800; font-size:14px;">{{ result.dailyFortune.cardTitle }}</div>
+                <div class="talisman-tag">{{ result.dailyFortune.todayPillar.hanja }} · {{ result.dailyFortune.elementKo }} 기운</div>
+              </div>
+              <div class="talisman-3lines">
+                <div class="t-line"><strong>💼 업무운</strong><span>{{ result.dailyFortune.workFortune }}</span></div>
+                <div class="t-line"><strong>🤝 대인운</strong><span>{{ result.dailyFortune.socialFortune }}</span></div>
+                <div class="t-line"><strong>🍀 행운 아이템</strong><span>{{ result.dailyFortune.luckyItem }}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 사주팔자 명식표 -->
+          <div class="card">
+            <h2 class="card-title">
+              <span>사주팔자 명식표</span>
+              <span class="badge">{{ result.input.name || '본인' }} · {{ result.pillars.year.branchAnimal }}띠 · 일간 {{ result.dayMaster.stem }}({{ result.dayMaster.hanja }}, {{ result.dayMaster.elementKo }})</span>
+            </h2>
+            <div class="pillars-grid">
+              <div v-for="col in pillarColumns" :key="col.key" class="pillar-card" :class="{ 'is-day': col.key === 'day' }">
+                <div class="pillar-label">{{ col.title }}</div>
+                <template v-if="result.pillars[col.key]">
+                  <div class="char-box" :class="'el-' + result.pillars[col.key].stemElement">
+                    <span class="char-hanja">{{ result.pillars[col.key].stemHanja }}</span>
+                    <span class="char-ko">{{ result.pillars[col.key].stem }} ({{ result.pillars[col.key].stemElementKo }})</span>
+                  </div>
+                  <div class="char-box" :class="'el-' + result.pillars[col.key].branchElement">
+                    <span class="char-hanja">{{ result.pillars[col.key].branchHanja }}</span>
+                    <span class="char-ko">{{ result.pillars[col.key].branch }} ({{ result.pillars[col.key].branchElementKo }})</span>
+                  </div>
+                  <div class="pillar-meta" v-if="col.key === 'year'"><strong>{{ result.pillars[col.key].branchAnimal }}띠 (생년)</strong></div>
+                  <div class="pillar-meta" v-else-if="col.key === 'day'">나 자신 (일주)</div>
+                  <div class="pillar-meta" v-else>십이지: {{ result.pillars[col.key].branchAnimal }}</div>
+                </template>
+                <template v-else>
+                  <div class="char-box el-metal" style="min-height: 112px;"><span class="char-ko">시간 미상</span></div>
+                  <div class="pillar-meta">시주 미확정</div>
+                </template>
+              </div>
+            </div>
+
+            <div class="kv-grid">
+              <div class="kv-card">
+                <div class="kv-label">일간 강약</div>
+                <div class="kv-val">{{ strengthLabel(result.dayMaster.strength) }}</div>
+              </div>
+              <div class="kv-card">
+                <div class="kv-label">강한 오행</div>
+                <div class="kv-val" :class="'text-' + result.dominantElements[0]">{{ result.dominantElements.map(elLabel).join(', ') }}</div>
+              </div>
+              <div class="kv-card">
+                <div class="kv-label">부족한 오행</div>
+                <div class="kv-val" :class="'text-' + result.weakElements[0]">{{ result.weakElements.map(elLabel).join(', ') }}</div>
+              </div>
+              <div class="kv-card">
+                <div class="kv-label">용신 조율점</div>
+                <div class="kv-val" :class="'text-' + result.yongsin.primary">
+                  {{ result.yongsin.primaryKo }}
+                  <span style="font-size:12px; font-weight:600; color:var(--muted);">/ 보조 {{ result.yongsin.secondaryKo }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 오행 분포 -->
+          <div class="card">
+            <h2 class="card-title">오행 분포</h2>
+            <div class="elements-list">
+              <div class="el-row" v-for="el in elementOrder" :key="el.key">
+                <div class="el-label-wrap">
+                  <strong>{{ el.label }}</strong>
+                  <span class="el-count" :class="'text-' + el.key">{{ result.fiveElements[el.key] }}</span>
+                </div>
+                <div class="el-bar-track">
+                  <div class="el-bar-fill" :class="'fill-' + el.key" :style="{ width: barWidth(result.fiveElements[el.key], result.timeAccuracy) }"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 대운 흐름 -->
+          <div class="card">
+            <h2 class="card-title">대운 흐름 (10년 주기 근사)</h2>
+            <div class="daeun-row">
+              <div class="daeun-item" v-for="c in result.daeUn.cycles" :key="c.age">
+                <div class="daeun-age">{{ c.age }}세~</div>
+                <div class="daeun-ganji">{{ c.label }}</div>
+                <div class="daeun-hanja">{{ c.hanja }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 월별 운세 흐름 -->
+          <div class="card">
+            <h2 class="card-title">
+              <span>{{ result.monthlyFortune.targetYear }}년 월별 운세 흐름</span>
+              <span class="badge">{{ result.monthlyFortune.yearLabel }}</span>
+            </h2>
+            <div class="monthly-grid">
+              <div class="month-item" v-for="m in result.monthlyFortune.months" :key="m.month">
+                <div class="month-head">
+                  <span class="month-num">{{ m.month }}월</span>
+                  <span class="month-ganji">{{ m.label }} ({{ m.hanja }})</span>
+                </div>
+                <span class="month-tone" :class="'tone-' + m.toneKey">{{ m.tone }} · {{ m.elementKo }}</span>
+                <div class="month-hint">{{ m.hint }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 주제별 상세 풀이 -->
+          <div class="card">
+            <h2 class="card-title">{{ currentTopicLabel }} 상세 풀이</h2>
+            <div class="reading-body">
+              <h4>1. 일간 및 기질 요약</h4>
+              <p>
+                <strong>{{ result.dayMaster.stem }}({{ result.dayMaster.hanja }}, {{ result.dayMaster.elementKo }})</strong> 일간이며 전체 기운의 균형은 <strong>{{ strengthLabel(result.dayMaster.strength) }}</strong> 편에 속합니다.
+                사주 내에서는 <strong>{{ result.dominantElements.map(elLabel).join(', ') }}</strong> 기운이 두드러지고, 상대적으로 <strong>{{ result.weakElements.map(elLabel).join(', ') }}</strong> 기운을 보완하면 안정감이 커집니다.
+              </p>
+              <h4>2. {{ currentTopicLabel }} 핵심 해석</h4>
+              <p>{{ result.fortune.summary }}</p>
+              <p>{{ result.yongsin.reasoning }}</p>
+            </div>
+            <div class="guidance-box">
+              <strong>핵심 실천 포인트</strong>
+              <ul>
+                <li v-for="(g, i) in result.fortune.guidance" :key="i">{{ g }}</li>
+              </ul>
+              <p style="margin:8px 0 0; font-size:12px; color:var(--muted);">{{ result.fortune.caveat }}</p>
+            </div>
+          </div>
+        </template>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const STEMS = [
+  { korean: "갑", hanja: "甲", element: "wood", elementKo: "목", yinYang: "yang" },
+  { korean: "을", hanja: "乙", element: "wood", elementKo: "목", yinYang: "yin" },
+  { korean: "병", hanja: "丙", element: "fire", elementKo: "화", yinYang: "yang" },
+  { korean: "정", hanja: "丁", element: "fire", elementKo: "화", yinYang: "yin" },
+  { korean: "무", hanja: "戊", element: "earth", elementKo: "토", yinYang: "yang" },
+  { korean: "기", hanja: "己", element: "earth", elementKo: "토", yinYang: "yin" },
+  { korean: "경", hanja: "庚", element: "metal", elementKo: "금", yinYang: "yang" },
+  { korean: "신", hanja: "辛", element: "metal", elementKo: "금", yinYang: "yin" },
+  { korean: "임", hanja: "壬", element: "water", elementKo: "수", yinYang: "yang" },
+  { korean: "계", hanja: "癸", element: "water", elementKo: "수", yinYang: "yin" },
+];
+
+const BRANCHES = [
+  { korean: "자", hanja: "子", animal: "쥐", element: "water", elementKo: "수" },
+  { korean: "축", hanja: "丑", animal: "소", element: "earth", elementKo: "토" },
+  { korean: "인", hanja: "寅", animal: "호랑이", element: "wood", elementKo: "목" },
+  { korean: "묘", hanja: "卯", animal: "토끼", element: "wood", elementKo: "목" },
+  { korean: "진", hanja: "辰", animal: "용", element: "earth", elementKo: "토" },
+  { korean: "사", hanja: "巳", animal: "뱀", element: "fire", elementKo: "화" },
+  { korean: "오", hanja: "午", animal: "말", element: "fire", elementKo: "화" },
+  { korean: "미", hanja: "未", animal: "양", element: "earth", elementKo: "토" },
+  { korean: "신", hanja: "申", animal: "원숭이", element: "metal", elementKo: "금" },
+  { korean: "유", hanja: "酉", animal: "닭", element: "metal", elementKo: "금" },
+  { korean: "술", hanja: "戌", animal: "개", element: "earth", elementKo: "토" },
+  { korean: "해", hanja: "亥", animal: "돼지", element: "water", elementKo: "수" },
+];
+
+const ELEMENT_CYCLE = ["wood", "fire", "earth", "metal", "water"];
+const ELEMENT_KO = { wood: "목", fire: "화", earth: "토", metal: "금", water: "수" };
+const ELEMENT_LABELS = { wood: "목(木)", fire: "화(火)", earth: "토(土)", metal: "금(金)", water: "수(水)" };
+const CONTROLLING = { wood: "metal", fire: "water", earth: "wood", metal: "fire", water: "earth" };
+
+const TEN_GOD_CARDS = {
+  "비견": { cardTitle: "비견 자립(比肩自立) 부적", cardSubtitle: "나만의 페이스로 중심을 잡는 날", talismanHanja: "比肩", workFortune: "독립적으로 맡은 업무를 끝까지 밀어붙이기 좋은 날입니다.", socialFortune: "동료와 대등한 위치에서 솔직하게 의견을 나누면 신뢰가 쌓입니다.", luckyItem: "깔끔한 메모 노트 · 정돈된 책상" },
+  "겁재": { cardTitle: "겁재 돌파(劫財突破) 부적", cardSubtitle: "경쟁 속에서 추진력이 살아나는 날", talismanHanja: "劫財", workFortune: "빠른 실행이 강점이지만 지출·일정 과부하는 한 번 더 점검하세요.", socialFortune: "자존심 싸움보다 공동 목표를 먼저 언급하면 협력이 쉬워집니다.", luckyItem: "시원한 물 한 잔 · 체크리스트" },
+  "식신": { cardTitle: "식신 생재(食神生財) 부적", cardSubtitle: "아이디어와 여유가 성과로 이어지는 날", talismanHanja: "食神", workFortune: "창의적 기획이나 문서 작업이 술술 풀리며 생산성이 높아집니다.", socialFortune: "따뜻한 말 한마디와 티타임이 좋은 인연을 부릅니다.", luckyItem: "좋아하는 음료 · 산책 10분" },
+  "상관": { cardTitle: "상관 재능(傷官才能) 부적", cardSubtitle: "표현력과 반짝이는 감각이 빛나는 날", talismanHanja: "傷官", workFortune: "기존 방식을 개선하는 제안이나 발표에서 돋보일 수 있습니다.", socialFortune: "직설적인 표현은 한 템포 부드럽게 다듬어 전달하면 완벽합니다.", luckyItem: "밝은 포인트 소품 · 초안 두 번 읽기" },
+  "편재": { cardTitle: "편재 확장(偏財擴張) 부적", cardSubtitle: "새로운 기회와 유연한 감각이 열리는 날", talismanHanja: "偏財", workFortune: "외부 미팅, 신규 정보 탐색, 멀티태스킹에서 좋은 힌트를 얻습니다.", socialFortune: "가벼운 안부 인사가 의외의 협업 기회로 연결될 수 있습니다.", luckyItem: "메신저 정리 · 가벼운 외출" },
+  "정재": { cardTitle: "정재 안정(正財安定) 부적", cardSubtitle: "꾸준한 성실함이 실속으로 돌아오는 날", talismanHanja: "正財", workFortune: "정산, 데이터 검증, 루틴 업무에서 빈틈없는 성과를 냅니다.", socialFortune: "약속 시간과 작은 디테일을 지키는 태도가 큰 점수를 얻습니다.", luckyItem: "일정표 점검 · 차분한 톤 의상" },
+  "편관": { cardTitle: "편관 결단(偏官決斷) 부적", cardSubtitle: "압박을 돌파구로 바꾸는 집중의 날", talismanHanja: "偏官", workFortune: "까다로운 이슈를 정면 돌파할 힘이 생기니 우선순위를 1~2개로 좁히세요.", socialFortune: "결론부터 간결하게 소통하면 오해가 크게 줄어듭니다.", luckyItem: "깊은 호흡 3회 · 핵심 요약 3줄" },
+  "정관": { cardTitle: "정관 수호(正官守護) 부적", cardSubtitle: "신뢰와 원칙이 나를 지켜주는 날", talismanHanja: "正官", workFortune: "보고·승인·공식 미팅에서 안정감과 전문성이 돋보입니다.", socialFortune: "예의와 원칙을 지키는 태도가 든든한 평판으로 이어집니다.", luckyItem: "단정한 셔츠·재킷 · 일정 캘린더" },
+  "편인": { cardTitle: "편인 영감(偏印靈感) 부적", cardSubtitle: "직관과 깊은 통찰이 떠오르는 날", talismanHanja: "偏印", workFortune: "남들이 놓친 패턴이나 새로운 해법을 조용히 정리할 때 잘 보입니다.", socialFortune: "혼자만의 생각 정리 시간을 잠깐 확보한 뒤 대화하면 편안합니다.", luckyItem: "조용한 집중 20분 · 아이디어 메모" },
+  "정인": { cardTitle: "정인 귀인(正印貴人) 부적", cardSubtitle: "배움과 조력자의 온기가 감도는 날", talismanHanja: "正印", workFortune: "자료 학습, 리뷰, 멘토링에서 유익한 조언과 도움을 받기 좋습니다.", socialFortune: "먼저 질문을 건네면 뜻밖의 친절한 피드백이 돌아옵니다.", luckyItem: "따뜻한 차 한 잔 · 감사 인사 한 줄" },
+};
+
+const mod = (v, d) => ((v % d) + d) % d;
+const makePillar = (si, bi) => {
+  const s = STEMS[si], b = BRANCHES[bi];
+  return {
+    label: s.korean + b.korean, hanja: s.hanja + b.hanja,
+    stem: s.korean, stemHanja: s.hanja, stemElement: s.element, stemElementKo: s.elementKo,
+    branch: b.korean, branchHanja: b.hanja, branchAnimal: b.animal, branchElement: b.element, branchElementKo: b.elementKo,
+    yinYang: s.yinYang, stemIndex: si, branchIndex: bi,
+  };
+};
+
+function getSolarTermMonthIndex(month, day) {
+  const starts = [[2,4],[3,6],[4,5],[5,6],[6,6],[7,7],[8,8],[9,8],[10,8],[11,7],[12,7],[1,6]];
+  const val = month * 100 + day;
+  for (let i = 10; i >= 0; i--) {
+    if (val >= starts[i][0] * 100 + starts[i][1]) return i;
+  }
+  return 11;
+}
+
+function analyzeSajuClient(input, topic) {
+  const [year, month, day] = input.birthDate.split("-").map(Number);
+  const hour = input.birthTime ? Number(input.birthTime.split(":")[0]) : null;
+  const sajuYear = (month < 2 || (month === 2 && day < 4)) ? year - 1 : year;
+  const yearP = makePillar(mod(sajuYear - 4, 10), mod(sajuYear - 4, 12));
+  const mIdx = getSolarTermMonthIndex(month, day);
+  const bIdx = mod(mIdx + 2, 12);
+  const mStart = [2, 4, 6, 8, 0][yearP.stemIndex % 5];
+  const mOffset = bIdx >= 2 ? bIdx - 2 : bIdx + 10;
+  const monthP = makePillar(mod(mStart + mOffset, 10), bIdx);
+
+  const diffDays = Math.round((Date.UTC(year, month - 1, day, 12) - Date.UTC(1900, 0, 1, 12)) / 86400000);
+  const dayP = makePillar(mod(diffDays, 10), mod(10 + diffDays, 12));
+  let hourP = null;
+  if (hour !== null && !Number.isNaN(hour)) {
+    const hb = (hour >= 23 || hour < 1) ? 0 : Math.floor((hour + 1) / 2);
+    hourP = makePillar(mod(dayP.stemIndex * 2 + hb, 10), hb);
+  }
+  const pillars = { year: yearP, month: monthP, day: dayP, hour: hourP };
+
+  const fiveElements = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
+  Object.values(pillars).forEach((p) => { if (p) { fiveElements[p.stemElement]++; fiveElements[p.branchElement]++; } });
+  const maxV = Math.max(...Object.values(fiveElements));
+  const minV = Math.min(...Object.values(fiveElements));
+  const dominantElements = ELEMENT_CYCLE.filter((e) => fiveElements[e] === maxV && maxV > 0);
+  const weakElements = ELEMENT_CYCLE.filter((e) => fiveElements[e] === minV);
+
+  const genEl = (el) => ELEMENT_CYCLE[mod(ELEMENT_CYCLE.indexOf(el) - 1, 5)];
+  const genedEl = (el) => ELEMENT_CYCLE[mod(ELEMENT_CYCLE.indexOf(el) + 1, 5)];
+  const dayEl = dayP.stemElement;
+  const sup = fiveElements[dayEl] + fiveElements[genEl(dayEl)] * 0.7;
+  const strength = sup >= 3.5 ? "strong" : (sup <= 1.5 ? "weak" : "balanced");
+  const dayMaster = { stem: dayP.stem, hanja: dayP.hanja.slice(0,1), element: dayEl, elementKo: ELEMENT_KO[dayEl], strength };
+
+  const primary = strength === "strong" ? CONTROLLING[dayEl] : genEl(dayEl);
+  const generated = genedEl(dayEl);
+  const secondary = weakElements.includes(generated) ? generated : weakElements[0];
+  const yongsin = {
+    primary, primaryKo: ELEMENT_LABELS[primary], secondary, secondaryKo: ELEMENT_LABELS[secondary],
+    reasoning: `${dayMaster.elementKo} 일간의 강약과 오행 분포를 함께 보아 ${ELEMENT_LABELS[primary]} 기운을 우선 조율점으로 둡니다.`,
+  };
+
+  // 대운
+  const startAge = input.gender === "male" ? 7 : 8;
+  const daeUnCycles = [];
+  for (let i = 0; i < 8; i++) {
+    const s = STEMS[mod(monthP.stemIndex + i + 1, 10)];
+    const b = BRANCHES[mod(monthP.branchIndex + i + 1, 12)];
+    daeUnCycles.push({ age: startAge + i * 10, label: s.korean + b.korean, hanja: s.hanja + b.hanja });
+  }
+
+  // 월별 운세
+  const ty = Number(topic.targetYear || new Date().getFullYear());
+  const tyStemIdx = mod(ty - 4, 10);
+  const tyPillar = makePillar(tyStemIdx, mod(ty - 4, 12));
+  const tyMonthStart = [2, 4, 6, 8, 0][tyStemIdx % 5];
+  const domSet = new Set(dominantElements);
+  const months = [];
+  for (let m = 1; m <= 12; m++) {
+    const offset = m === 1 ? 11 : m - 2;
+    const s = STEMS[mod(tyMonthStart + offset, 10)];
+    const b = BRANCHES[mod(offset + 2, 12)];
+    const hasYong = s.element === primary || b.element === primary || s.element === secondary || b.element === secondary;
+    const hasDom = domSet.has(s.element) || domSet.has(b.element);
+    let tone = "안정·유지", toneKey = "neutral", hint = "무난한 흐름으로 기존 계획을 꾸준히 이어가기 좋습니다.";
+    if (hasYong) { tone = "조화·상승"; toneKey = "good"; hint = `용신(${ELEMENT_KO[primary]}/${ELEMENT_KO[secondary]}) 기운이 들어와 흐름이 순탄합니다.`; }
+    else if (hasDom) { tone = "과열·조율"; toneKey = "caution"; hint = "강한 오행이 겹쳐 속도 조절과 휴식이 필요합니다."; }
+    months.push({ month: m, label: s.korean + b.korean, hanja: s.hanja + b.hanja, elementKo: `${s.elementKo}·${b.elementKo}`, tone, toneKey, hint });
+  }
+
+  // 오늘의 운세 (KST)
+  const nowKst = new Date(Date.now() + 9 * 3600000);
+  const todayStr = nowKst.toISOString().slice(0, 10);
+  const [tyy, tmm, tdd] = todayStr.split("-").map(Number);
+  const tDiff = Math.round((Date.UTC(tyy, tmm - 1, tdd, 12) - Date.UTC(1900, 0, 1, 12)) / 86400000);
+  const todayPillar = makePillar(mod(tDiff, 10), mod(10 + tDiff, 12));
+  const dEl = Math.floor(dayP.stemIndex / 2), tEl = Math.floor(todayPillar.stemIndex / 2);
+  const sameYY = (dayP.stemIndex % 2) === (todayPillar.stemIndex % 2);
+  let tenGod = sameYY ? "편인" : "정인";
+  if (dEl === tEl) tenGod = sameYY ? "비견" : "겁재";
+  else if (mod(dEl + 1, 5) === tEl) tenGod = sameYY ? "식신" : "상관";
+  else if (mod(dEl + 2, 5) === tEl) tenGod = sameYY ? "편재" : "정재";
+  else if (mod(tEl + 2, 5) === dEl) tenGod = sameYY ? "편관" : "정관";
+
+  const domStr = dominantElements.map((e) => ELEMENT_LABELS[e]).join(", ");
+  const weakStr = weakElements.map((e) => ELEMENT_LABELS[e]).join(", ");
+  const topicReadings = {
+    daily: { summary: `오늘은 ${todayPillar.label}(${todayPillar.hanja}) 일진으로, 일간 대비 '${tenGod}' 기운이 작용합니다. ${TEN_GOD_CARDS[tenGod].cardSubtitle}`, guidance: [TEN_GOD_CARDS[tenGod].workFortune, TEN_GOD_CARDS[tenGod].socialFortune] },
+    general: { summary: `${domStr} 기운이 강하게 드러나므로 장점은 살리고 부족한 ${weakStr} 기운을 생활 루틴으로 보완하는 흐름이 좋습니다.`, guidance: ["강한 기운이 과해지는 상황을 먼저 살피세요.", "부족한 오행을 습관·환경으로 보완해 균형을 맞추세요."] },
+    love: { summary: `연애운은 관계에서 표현의 속도와 안정감을 맞추는 쪽으로 풀이합니다. 강한 ${domStr} 기운은 매력이지만 과하면 고집으로 보일 수 있습니다.`, guidance: ["호감 표현은 선명하게, 결론은 천천히 잡으세요.", "상대의 반응 속도를 존중하면 관계 안정감이 커집니다."] },
+    wealth: { summary: `재물운은 강한 ${domStr} 기운을 현금흐름 규칙으로 묶을 때 좋아집니다. 충동적 확장보다 반복 가능한 저축·예산 원칙이 핵심입니다.`, guidance: ["큰 결정보다 반복 가능한 예산 규칙을 먼저 세우세요.", "수입원과 지출 항목을 분리해 흐름을 보세요."] },
+    career: { summary: `${dayMaster.elementKo} 일간은 책임의 중심을 잡을 때 직업운이 안정됩니다. 강한 ${domStr} 기운을 구체적인 성과 언어로 바꾸는 전략이 좋습니다.`, guidance: ["역할과 책임 범위를 명확히 잡으세요.", "성과 기록과 피드백 주기를 짧게 두세요."] },
+    health: { summary: `건강운은 부족한 ${weakStr} 기운을 보완하는 수면, 식사, 움직임의 균형에서 봅니다.`, guidance: ["무리한 해석보다 컨디션 기록을 우선하세요.", "증상이 있으면 의료 전문가에게 확인하세요."] },
+    yearly: { summary: `${ty}년(${tyPillar.label}년)은 강한 ${domStr} 기운을 다스리며 ${ELEMENT_LABELS[primary]} 기운으로 균형을 잡는 한 해로 삼으시면 좋습니다.`, guidance: ["월별 운세에서 '조화·상승' 달에 주요 일정을 배치해 보세요.", "과열이 겹치는 달에는 휴식과 점검을 우선하세요."] },
+    monthly: { summary: `${ty}년 12개월 월운에서 용신(${ELEMENT_LABELS[primary]})이 들어오는 달과 조율이 필요한 달을 구분해 리듬을 관리해 보세요.`, guidance: ["상승 흐름의 달에는 새로운 시도와 협업을 추진하세요.", "조율 필요 달에는 기존 과제를 정리하며 체력을 비축하세요."] },
+  };
+  const chosen = topicReadings[topic.key] || topicReadings.general;
+
+  return {
+    input,
+    pillars,
+    timeAccuracy: hourP ? "known" : "unknown",
+    dayMaster,
+    fiveElements,
+    dominantElements,
+    weakElements,
+    yongsin,
+    daeUn: { cycles: daeUnCycles },
+    monthlyFortune: { targetYear: ty, yearLabel: `${tyPillar.label}년 (${tyPillar.hanja})`, months },
+    dailyFortune: { date: todayStr, todayPillar, tenGod, element: todayPillar.stemElement, elementKo: todayPillar.stemElementKo, ...TEN_GOD_CARDS[tenGod] },
+    fortune: {
+      summary: chosen.summary,
+      guidance: chosen.guidance,
+      caveat: "사주 풀이는 재미와 자기점검을 돕는 전통 해석이며, 의료·투자·법률 등 전문 판단을 대신하지 않습니다.",
+    },
+  };
+}
+
+const { createApp } = Vue;
+createApp({
+  data: () => ({
+    editingInput: true,
+    errorMsg: "",
+    toast: "",
+    manualCopyText: "",
+    form: {
+      name: "",
+      gender: "male",
+      calendar: "solar",
+      birthDate: "1990-03-15",
+      birthTime: "10:30",
+      unknownTime: false,
+      topicKey: "daily",
+      targetYear: new Date().getFullYear(),
+    },
+    topics: [
+      { key: "daily", label: "오늘의 운세" },
+      { key: "general", label: "종합운" },
+      { key: "love", label: "연애운" },
+      { key: "wealth", label: "재물운" },
+      { key: "career", label: "직업운" },
+      { key: "health", label: "건강운" },
+      { key: "yearly", label: "한해 운세" },
+      { key: "monthly", label: "월별 운세" },
+    ],
+    pillarColumns: [
+      { key: "hour", title: "시주 (時柱)" },
+      { key: "day", title: "일주 (日柱)" },
+      { key: "month", title: "월주 (月柱)" },
+      { key: "year", title: "연주 (年柱)" },
+    ],
+    elementOrder: [
+      { key: "wood", label: "목 (木)" },
+      { key: "fire", label: "화 (火)" },
+      { key: "earth", label: "토 (土)" },
+      { key: "metal", label: "금 (金)" },
+      { key: "water", label: "수 (水)" },
+    ],
+    result: null,
+  }),
+  computed: {
+    currentTopicLabel() {
+      const t = this.topics.find((item) => item.key === this.form.topicKey);
+      return t ? t.label : "종합운";
+    },
+  },
+  methods: {
+    elLabel: (k) => ELEMENT_LABELS[k] || k,
+    strengthLabel: (s) => ({ strong: "신강(身強)", weak: "신약(身弱)", balanced: "중화(中和)" }[s] || s),
+    barWidth(count, acc) { return Math.min(100, Math.round((count / (acc === "known" ? 8 : 6)) * 100 * 1.6)) + "%"; },
+    showToast(msg) { this.toast = msg; setTimeout(() => { if (this.toast === msg) this.toast = ""; }, 3000); },
+    runAnalysis() {
+      this.errorMsg = "";
+      if (!this.form.birthDate) { this.errorMsg = "생년월일을 입력해 주세요."; return; }
+      this.result = analyzeSajuClient({
+        name: this.form.name.trim(),
+        gender: this.form.gender,
+        calendar: this.form.calendar,
+        birthDate: this.form.birthDate,
+        birthTime: this.form.unknownTime ? "" : this.form.birthTime,
+      }, { key: this.form.topicKey, targetYear: this.form.targetYear });
+      this.editingInput = false;
+    },
+    printPdf() { window.print(); },
+    async copySummary() {
+      if (!this.result) return;
+      const s = this.result, df = s.dailyFortune, who = s.input.name || "본인";
+      const text = [
+        `🔮 [${who}님의 사주 OOS · 오늘의 운세]`,
+        `• 사주팔자: ${s.pillars.year.label}(${s.pillars.year.branchAnimal}띠) · ${s.pillars.month.label} · ${s.pillars.day.label} · ${s.pillars.hour ? s.pillars.hour.label : "시간미상"}`,
+        `• 일간: ${s.dayMaster.stem}(${s.dayMaster.hanja}, ${s.dayMaster.elementKo}) · ${this.strengthLabel(s.dayMaster.strength)}`,
+        `• 오늘의 부적(${df.date}, ${df.todayPillar.label}일진): ${df.cardTitle}`,
+        `  - 업무운: ${df.workFortune}`,
+        `  - 대인운: ${df.socialFortune}`,
+        `  - 행운 아이템: ${df.luckyItem}`,
+        ``,
+        `※ 재미와 자기점검용 참고 자료입니다.`,
+      ].join("\n");
+      this.manualCopyText = "";
+      if (navigator.clipboard && window.isSecureContext) {
+        try { await navigator.clipboard.writeText(text); this.showToast("복사 완료! 원하는 곳에 붙여넣으세요."); return; } catch (_) {}
+      }
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.left = "-9999px";
+        document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, 99999);
+        const ok = document.execCommand("copy"); document.body.removeChild(ta);
+        if (ok) { this.showToast("복사 완료! 원하는 곳에 붙여넣으세요."); return; }
+      } catch (_) {}
+      this.manualCopyText = text;
+    },
+    downloadTalismanPng() {
+      const df = this.result?.dailyFortune;
+      if (!df) return;
+      const palette = {
+        wood: ["#e7f6ef", "#c8ebd9", "#0f5c41"], fire: ["#fdeceb", "#fbd0cc", "#9c2b20"],
+        earth: ["#fef6e4", "#f8e3b4", "#8c5a10"], metal: ["#f1f5f9", "#dbe3ec", "#334155"],
+        water: ["#ebf2fe", "#cde0fc", "#1e40af"],
+      }[df.element] || ["#faf8f3", "#ebe5d5", "#1e2a4a"];
+      const canvas = document.createElement("canvas");
+      canvas.width = 900; canvas.height = 500;
+      const ctx = canvas.getContext("2d");
+      const grad = ctx.createLinearGradient(0, 0, 900, 500);
+      grad.addColorStop(0, palette[0]); grad.addColorStop(1, palette[1]);
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 900, 500);
+      ctx.strokeStyle = "#b8862d"; ctx.lineWidth = 4; ctx.strokeRect(20, 20, 860, 460);
+      ctx.fillStyle = "rgba(255,255,255,0.72)"; ctx.beginPath(); ctx.arc(175, 230, 96, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = palette[2]; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = palette[2]; ctx.textAlign = "center";
+      ctx.font = "bold 20px 'Malgun Gothic', sans-serif"; ctx.fillText(df.date, 175, 100);
+      ctx.font = "bold 54px serif"; ctx.fillText(df.talismanHanja, 175, 248);
+      ctx.font = "bold 22px 'Malgun Gothic', sans-serif"; ctx.fillText(df.cardTitle, 175, 368);
+      ctx.font = "16px 'Malgun Gothic', sans-serif"; ctx.fillText(`${df.todayPillar.label}(${df.todayPillar.hanja}) · ${df.elementKo} 기운`, 175, 400);
+      ctx.textAlign = "left"; ctx.fillStyle = "#1e2a4a";
+      ctx.font = "bold 24px 'Malgun Gothic', sans-serif"; ctx.fillText(`“${df.cardSubtitle}”`, 320, 110);
+      const items = [["💼 업무운", df.workFortune], ["🤝 대인운", df.socialFortune], ["🍀 행운 아이템", df.luckyItem]];
+      let y = 175;
+      for (const [label, body] of items) {
+        ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.fillRect(320, y - 32, 530, 74);
+        ctx.fillStyle = "#1e2a4a"; ctx.font = "bold 16px 'Malgun Gothic', sans-serif"; ctx.fillText(label, 338, y - 6);
+        ctx.fillStyle = "#334155"; ctx.font = "15px 'Malgun Gothic', sans-serif";
+        ctx.fillText(body.slice(0, 40) + (body.length > 40 ? "..." : ""), 338, y + 22);
+        y += 92;
+      }
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png"); a.download = `오늘의_오행부적_${df.date}.png`; a.click();
+      this.showToast("부적 카드 PNG를 저장했습니다!");
+    },
+  },
+}).mount("#app");
+</script>
+</body>
+</html>
